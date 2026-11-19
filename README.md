@@ -1,16 +1,22 @@
-# React + Vite
+# Voltech Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Tienda y panel de administración de Voltech, desarrollados con React y Vite.
 
-Currently, two official plugins are available:
+## Desarrollo local
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm ci
+npm run dev
+```
 
-## React Compiler
+Vite muestra en la terminal la dirección local del frontend. Para generar una versión de producción:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm run build
+```
 
-## Expanding the ESLint configuration
+## API
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Las llamadas HTTP están centralizadas en `src/services/api.js`. Actualmente usan `http://localhost:3000/api` y esperan respuestas de la API de Node.js con la forma `{ exito, data, mensaje }`.
+
+El microservicio Spring Boot de usuarios del repositorio hermano expone `GET` y `POST /api/v1/usuarios` con respuestas JSON directas. Antes de conectar registro, inicio de sesión y actualización de dirección, hay que adaptar esas rutas y los datos que intercambian ambos proyectos. Productos y pedidos todavía usan la API anterior.
