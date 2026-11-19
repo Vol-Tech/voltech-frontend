@@ -1,15 +1,29 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { obtenerUsuarioPorEmail } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-  const [ email, setEmail ] = useState('');
-  const [ contrasena, setContrasena ] = useState('');
+  const [email, setEmail] = useState('');
+  const [contrasena, setContrasena] = useState('');
 
-  const [ msgError, setMsgError ] = useState('');
-  const [ cargando, setCargando ] = useState(false);
+  const [msgError, setMsgError] = useState('');
+  const [cargando, setCargando] = useState(false);
 
   const navigate = useNavigate();
+  const { loginWithGoogle, syncSession } = useAuth();
+
+  const redirigirPorRol = (rol) => {
+    const rolNormalizado = (rol || 'CLIENTE').toUpperCase();
+    if (rolNormalizado === 'ADMINISTRADOR') {
+      navigate('/admin');
+    } else if (rolNormalizado === 'VENDEDOR') {
+      navigate('/admin/productos');
+    } else {
+      navigate('/');
+    }
+  };
 
   const iniciarSesion = async (e) => {
     e.preventDefault();
@@ -31,17 +45,51 @@ export default function Login() {
         return;
       }
 
-      localStorage.setItem('usuario', JSON.stringify(usuario));
-      alert(`¡Bienvenido/a de vuelta, ${usuario.nombre}!`);
+      const usuarioNormalizado = {
+        ...usuario,
+        rol: (usuario.rol || 'CLIENTE').toUpperCase(),
+      };
 
-      if (usuario.rol === 'administrador') {
-        navigate('/admin');
-      } else {
-        navigate('/');
+      const tokenSesion = usuario.token || `voltech-jwt-${usuario.id || Date.now()}`;
+      syncSession(tokenSesion, usuarioNormalizado);
+
+      alert(`¡Bienvenido/a de vuelta, ${usuarioNormalizado.nombre}!`);
+      redirigirPorRol(usuarioNormalizado.rol);
+    } catch (error) {
+      setMsgError('Error al intentar iniciar sesión');
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const manejarLoginGoogle = async (credentialResponse) => {
+    setMsgError('');
+    setCargando(true);
+
+    try {
+      const googleUser = await loginWithGoogle(credentialResponse);
+      let usuarioFinal = googleUser;
+
+      // Consulta la BD para asignar el rol real (ADMINISTRADOR, VENDEDOR o CLIENTE) si el correo ya existe
+      try {
+        const usuarioBD = await obtenerUsuarioPorEmail(googleUser.email);
+        if (usuarioBD) {
+          usuarioFinal = {
+            ...googleUser,
+            ...usuarioBD,
+            foto: googleUser.foto,
+            rol: (usuarioBD.rol || googleUser.rol || 'CLIENTE').toUpperCase(),
+          };
+          syncSession(credentialResponse.credential, usuarioFinal);
+        }
+      } catch {
+        // Si el correo aún no existe en la BD, entra con rol CLIENTE por defecto
       }
 
+      alert(`¡Bienvenido/a, ${usuarioFinal.nombre}!`);
+      redirigirPorRol(usuarioFinal.rol);
     } catch (error) {
-      setMsgError('Error al intentar iniciar sesion');
+      setMsgError('No se pudo iniciar sesión con Google. Verifica tu cuenta institucional.');
     } finally {
       setCargando(false);
     }
@@ -49,11 +97,9 @@ export default function Login() {
 
   return (
     <main className="main-login">
-
       <img src="img/VolTech Logo - Sin texto.png" alt="main-logo" />
 
       <form className="form-container" id="formulario" onSubmit={iniciarSesion}>
-
         <h3>Inicio de sesión</h3>
 
         {msgError && (
@@ -63,15 +109,41 @@ export default function Login() {
         )}
 
         <h4>Correo</h4>
-        <input type="text" id="regCorreo" placeholder="Ingrese correo (ej: usuario@duoc.cl)" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <h4>Constraseña</h4>
-        <input type="password" id="regContraseña" placeholder="Ingrese contraseña" value={contrasena} onChange={(e) => setContrasena(e.target.value)} required />
+        <input
+          type="text"
+          id="regCorreo"
+          placeholder="Ingrese correo (ej: usuario@duoc.cl)"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+
+        <h4>Contraseña</h4>
+        <input
+          type="password"
+          id="regContraseña"
+          placeholder="Ingrese contraseña"
+          value={contrasena}
+          onChange={(e) => setContrasena(e.target.value)}
+          required
+        />
 
         <button type="submit" disabled={cargando}>
           {cargando ? 'Verificando...' : 'Iniciar Sesión'}
         </button>
-      </form>
 
+        <div className="w-100 text-center my-2">
+          <span className="text-muted small">o continúa con</span>
+        </div>
+
+        <div className="w-100 d-flex justify-content-center">
+          <GoogleLogin
+            onSuccess={manejarLoginGoogle}
+            onError={() => setMsgError('Error al conectar con Google Auth')}
+            useOneTap={false}
+          />
+        </div>
+      </form>
     </main>
   );
 }
