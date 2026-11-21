@@ -1,55 +1,84 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react';
 
-const CarritoContext = createContext()
+const CarritoContext = createContext(null);
 
 export function CarritoProvider({ children }) {
-  const [items, setItems] = useState(() => {
-    const guardado = localStorage.getItem('carrito')
-    return guardado ? JSON.parse(guardado) : []
-  })
+  const [carrito, setCarrito] = useState(() => {
+    try {
+      const guardado = localStorage.getItem('voltech_carrito') || localStorage.getItem('carrito');
+      return guardado ? JSON.parse(guardado) : [];
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
-    localStorage.setItem('carrito', JSON.stringify(items))
-  }, [items])
+    localStorage.setItem('voltech_carrito', JSON.stringify(carrito));
+    localStorage.setItem('carrito', JSON.stringify(carrito));
+  }, [carrito]);
 
-  function agregar(producto, cantidad = 1) {
-    const existe = items.find((item) => item.id === producto.id)
-    if (existe) {
-      setItems(
-        items.map((item) =>
-          item.id === producto.id ? { ...item, cantidad: item.cantidad + cantidad } : item
-        )
-      )
-    } else {
-      setItems([...items, { ...producto, cantidad }])
+  const agregarAlCarrito = (producto, cantidad = 1) => {
+    setCarrito((prev) => {
+      const existe = prev.find((item) => item.id === producto.id);
+      if (existe) {
+        return prev.map((item) =>
+          item.id === producto.id
+            ? { ...item, cantidad: (item.cantidad || 1) + cantidad }
+            : item
+        );
+      }
+      return [...prev, { ...producto, cantidad }];
+    });
+  };
+
+  const eliminarDelCarrito = (id) => {
+    setCarrito((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const actualizarCantidad = (id, nuevaCantidad) => {
+    if (nuevaCantidad <= 0) {
+      eliminarDelCarrito(id);
+      return;
     }
-  }
+    setCarrito((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, cantidad: nuevaCantidad } : item))
+    );
+  };
 
-  function cambiarCantidad(id, cantidad) {
-    if (cantidad < 1) return
-    setItems(items.map((item) => (item.id === id ? { ...item, cantidad } : item)))
-  }
+  const vaciarCarrito = () => {
+    setCarrito([]);
+  };
 
-  function eliminar(id) {
-    setItems(items.filter((item) => item.id !== id))
-  }
+  const totalItems = carrito.reduce((acc, item) => acc + (item.cantidad || 1), 0);
+  const totalPrecio = carrito.reduce(
+    (acc, item) => acc + (Number(item.precio) || 0) * (item.cantidad || 1),
+    0
+  );
 
-  function vaciar() {
-    setItems([])
-  }
+  const value = {
+    carrito,
+    items: carrito,
+    agregarAlCarrito,
+    agregarProducto: agregarAlCarrito,
+    eliminarDelCarrito,
+    eliminarProducto: eliminarDelCarrito,
+    actualizarCantidad,
+    cambiarCantidad: actualizarCantidad,
+    vaciarCarrito,
+    limpiarCarrito: vaciarCarrito,
+    totalItems,
+    cantidadTotal: totalItems,
+    totalPrecio,
+    total: totalPrecio,
+  };
 
-  const total = items.reduce((suma, item) => suma + Number(item.precio) * item.cantidad, 0)
-  const cantidadTotal = items.reduce((suma, item) => suma + item.cantidad, 0)
-
-  return (
-    <CarritoContext.Provider
-      value={{ items, total, cantidadTotal, agregar, cambiarCantidad, eliminar, vaciar }}
-    >
-      {children}
-    </CarritoContext.Provider>
-  )
+  return <CarritoContext.Provider value={value}>{children}</CarritoContext.Provider>;
 }
 
 export function useCarrito() {
-  return useContext(CarritoContext)
+  const context = useContext(CarritoContext);
+  if (!context) {
+    throw new Error('useCarrito debe usarse dentro de un CarritoProvider');
+  }
+  return context;
 }
