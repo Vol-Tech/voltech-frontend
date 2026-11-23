@@ -1,23 +1,26 @@
-// Si tu backend Spring Boot corre en el puerto 8080 con versionado, cambia esta URL a: 'http://localhost:8080/api/v1'
-const API_URL = 'http://localhost:3000/api';
+const API_ANTIGUA_URL = 'http://localhost:3000/api';
+const INVENTARIO_URL = '/api/v1/productos';
 
-// Helper para adjuntar automáticamente el token JWT en las peticiones REST (IE3.2.2 / IE3.3.1)
 const getAuthHeaders = (hasBody = false) => {
   const headers = {};
+
   if (hasBody) {
     headers['Content-Type'] = 'application/json';
   }
+
   const token = localStorage.getItem('voltech_token');
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers.Authorization = `Bearer ${token}`;
   }
+
   return headers;
 };
 
-// Helper para parsear respuestas JSON o vacías (ej. 204 No Content en DELETE de Spring Boot)
 const parsearRespuesta = async (respuesta, mensajeError) => {
   const texto = await respuesta.text();
-  const resultado = texto ? JSON.parse(texto) : { exito: true, data: true };
+  const resultado = texto
+    ? JSON.parse(texto)
+    : { exito: true, data: true };
 
   if (!respuesta.ok || resultado.exito === false) {
     throw new Error(resultado.mensaje || resultado.message || mensajeError);
@@ -26,7 +29,12 @@ const parsearRespuesta = async (respuesta, mensajeError) => {
   return resultado.data !== undefined ? resultado.data : resultado;
 };
 
-// Colecciones auxiliares para el front
+const adaptarProducto = (producto) => ({
+  ...producto,
+  imagen_url: producto.imagenUrl,
+  categoria: producto.categoriaNombre?.toLowerCase() ?? '',
+});
+
 export const categorias = [
   { id: 'cables', nombre: 'Cables', imagen: '/img/Cable tipo C.png' },
   { id: 'mouse', nombre: 'Mouse', imagen: '/img/Mouse Gamer.png' },
@@ -34,45 +42,56 @@ export const categorias = [
 ];
 
 export const regiones_comunas = {
-  Metropolitana: ['Santiago', 'Puente Alto', 'Maipú', 'La Florida', 'Providencia', 'Las Condes', 'San Bernardo'],
-  Valparaíso: ['Valparaíso', 'Viña del Mar', 'Quilpué', 'Villa Alemana', 'San Antonio'],
-  Biobío: ['Concepción', 'Talcahuano', 'Chiguayante', 'Los Ángeles', 'Coronel'],
+  Metropolitana: [
+    'Santiago', 'Puente Alto', 'Maipú', 'La Florida',
+    'Providencia', 'Las Condes', 'San Bernardo',
+  ],
+  Valparaíso: [
+    'Valparaíso', 'Viña del Mar', 'Quilpué',
+    'Villa Alemana', 'San Antonio',
+  ],
+  Biobío: [
+    'Concepción', 'Talcahuano', 'Chiguayante',
+    'Los Ángeles', 'Coronel',
+  ],
 };
 
-// ==========================================
-// ENDPOINTS DE PRODUCTOS
-// ==========================================
-
+// GET de productos: inventario-service a través del API Gateway
 export const obtenerProductos = async () => {
-  try {
-    const respuesta = await fetch(`${API_URL}/productos`, {
-      headers: getAuthHeaders(false),
-    });
-    return await parsearRespuesta(respuesta, 'Error al obtener los productos');
-  } catch (error) {
-    console.error('Error en obtenerProductos:', error);
-    return [];
+  const respuesta = await fetch(INVENTARIO_URL);
+  const datos = await parsearRespuesta(
+    respuesta,
+    'Error al obtener los productos'
+  );
+
+  if (!Array.isArray(datos)) {
+    throw new Error('La API de inventario no devolvió una lista');
   }
+
+  return datos.map(adaptarProducto);
 };
 
 export const obtenerProductoPorId = async (id) => {
-  try {
-    const respuesta = await fetch(`${API_URL}/productos/${id}`, {
-      headers: getAuthHeaders(false),
-    });
-    return await parsearRespuesta(respuesta, `No se encontró el producto con ID ${id}`);
-  } catch (error) {
-    console.error(`Error en obtenerProductoPorId (${id}):`, error);
-    return null;
-  }
+  const respuesta = await fetch(`${INVENTARIO_URL}/${id}`);
+  const producto = await parsearRespuesta(
+    respuesta,
+    `No se encontró el producto con ID ${id}`
+  );
+
+  return adaptarProducto(producto);
 };
 
+// Funciones existentes, pendientes de migrar a los microservicios
 export const obtenerProductosCriticos = async () => {
   try {
-    const respuesta = await fetch(`${API_URL}/productos/criticos`, {
-      headers: getAuthHeaders(false),
-    });
-    return await parsearRespuesta(respuesta, 'Error al obtener productos críticos');
+    const respuesta = await fetch(
+      `${API_ANTIGUA_URL}/productos/criticos`,
+      { headers: getAuthHeaders() }
+    );
+    return await parsearRespuesta(
+      respuesta,
+      'Error al obtener productos críticos'
+    );
   } catch (error) {
     console.error('Error en obtenerProductosCriticos:', error);
     return [];
@@ -80,56 +99,49 @@ export const obtenerProductosCriticos = async () => {
 };
 
 export const crearProd = async (nuevoProducto) => {
-  try {
-    const respuesta = await fetch(`${API_URL}/productos`, {
-      method: 'POST',
-      headers: getAuthHeaders(true),
-      body: JSON.stringify(nuevoProducto),
-    });
-    return await parsearRespuesta(respuesta, 'Error al crear el producto');
-  } catch (error) {
-    console.error('Error en crearProd:', error);
-    throw error;
-  }
+  const respuesta = await fetch(`${API_ANTIGUA_URL}/productos`, {
+    method: 'POST',
+    headers: getAuthHeaders(true),
+    body: JSON.stringify(nuevoProducto),
+  });
+
+  return parsearRespuesta(respuesta, 'Error al crear el producto');
 };
 
 export const actualizarProducto = async (id, datosActualizados) => {
-  try {
-    const respuesta = await fetch(`${API_URL}/productos/${id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(true),
-      body: JSON.stringify(datosActualizados),
-    });
-    return await parsearRespuesta(respuesta, `Error al actualizar el producto ${id}`);
-  } catch (error) {
-    console.error(`Error en actualizarProducto (${id}):`, error);
-    throw error;
-  }
+  const respuesta = await fetch(`${API_ANTIGUA_URL}/productos/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(true),
+    body: JSON.stringify(datosActualizados),
+  });
+
+  return parsearRespuesta(
+    respuesta,
+    `Error al actualizar el producto ${id}`
+  );
 };
 
 export const borrarProducto = async (id) => {
-  try {
-    const respuesta = await fetch(`${API_URL}/productos/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(false),
-    });
-    return await parsearRespuesta(respuesta, `Error al eliminar el producto ${id}`);
-  } catch (error) {
-    console.error(`Error en borrarProducto (${id}):`, error);
-    throw error;
-  }
-};
+  const respuesta = await fetch(`${API_ANTIGUA_URL}/productos/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
 
-// ==========================================
-// ENDPOINTS DE USUARIOS Y AUTENTICACIÓN
-// ==========================================
+  return parsearRespuesta(
+    respuesta,
+    `Error al eliminar el producto ${id}`
+  );
+};
 
 export const obtenerTodoUsuarios = async () => {
   try {
-    const respuesta = await fetch(`${API_URL}/usuarios`, {
-      headers: getAuthHeaders(false),
+    const respuesta = await fetch(`${API_ANTIGUA_URL}/usuarios`, {
+      headers: getAuthHeaders(),
     });
-    return await parsearRespuesta(respuesta, 'Error al obtener los usuarios');
+    return await parsearRespuesta(
+      respuesta,
+      'Error al obtener los usuarios'
+    );
   } catch (error) {
     console.error('Error en obtenerTodoUsuarios:', error);
     return [];
@@ -138,91 +150,96 @@ export const obtenerTodoUsuarios = async () => {
 
 export const obtenerUsuarioPorEmail = async (email) => {
   try {
-    const respuesta = await fetch(`${API_URL}/usuarios/email/${email}`, {
-      headers: getAuthHeaders(false),
-    });
-    return await parsearRespuesta(respuesta, `No se encontró el usuario con EMAIL ${email}`);
+    const respuesta = await fetch(
+      `${API_ANTIGUA_URL}/usuarios/email/${encodeURIComponent(email)}`,
+      { headers: getAuthHeaders() }
+    );
+    return await parsearRespuesta(
+      respuesta,
+      `No se encontró el usuario con EMAIL ${email}`
+    );
   } catch (error) {
-    console.error(`Error en obtenerUsuarioPorEmail (${email}):`, error);
+    console.error('Error en obtenerUsuarioPorEmail:', error);
     return null;
   }
 };
 
 export const obtenerIdUsuario = async (id) => {
   try {
-    const respuesta = await fetch(`${API_URL}/usuarios/${id}`, {
-      headers: getAuthHeaders(false),
+    const respuesta = await fetch(`${API_ANTIGUA_URL}/usuarios/${id}`, {
+      headers: getAuthHeaders(),
     });
-    return await parsearRespuesta(respuesta, `No se encontró el usuario con ID ${id}`);
+    return await parsearRespuesta(
+      respuesta,
+      `No se encontró el usuario con ID ${id}`
+    );
   } catch (error) {
-    console.error(`Error en obtenerIdUsuario (${id}):`, error);
+    console.error('Error en obtenerIdUsuario:', error);
     return null;
   }
 };
 
 export const creacionUsuario = async (nuevoUsuario) => {
-  try {
-    const respuesta = await fetch(`${API_URL}/usuarios/registro`, {
-      method: 'POST',
-      headers: getAuthHeaders(true),
-      body: JSON.stringify(nuevoUsuario),
-    });
-    return await parsearRespuesta(respuesta, 'Error al crear el usuario');
-  } catch (error) {
-    console.error('Error en creacionUsuario:', error);
-    throw error;
-  }
+  const respuesta = await fetch(`${API_ANTIGUA_URL}/usuarios/registro`, {
+    method: 'POST',
+    headers: getAuthHeaders(true),
+    body: JSON.stringify(nuevoUsuario),
+  });
+
+  return parsearRespuesta(respuesta, 'Error al crear el usuario');
 };
 
 export const actualizarDireccionDeUsuario = async (id, datosDireccion) => {
-  try {
-    const respuesta = await fetch(`${API_URL}/usuarios/${id}/direccion`, {
+  const respuesta = await fetch(
+    `${API_ANTIGUA_URL}/usuarios/${id}/direccion`,
+    {
       method: 'PUT',
       headers: getAuthHeaders(true),
       body: JSON.stringify(datosDireccion),
-    });
-    return await parsearRespuesta(respuesta, 'Error al actualizar la dirección');
-  } catch (error) {
-    console.error(`Error en actualizarDireccionDeUsuario (${id}):`, error.message);
-    throw error;
-  }
+    }
+  );
+
+  return parsearRespuesta(
+    respuesta,
+    'Error al actualizar la dirección'
+  );
 };
 
 export const autenticarGoogleBackend = async (credential) => {
-  const respuesta = await fetch(`${API_URL}/auth/google`, {
+  const respuesta = await fetch(`${API_ANTIGUA_URL}/auth/google`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ credential }),
   });
-  return await parsearRespuesta(respuesta, 'Error al validar credencial de Google en el backend');
+
+  return parsearRespuesta(
+    respuesta,
+    'Error al validar credencial de Google en el backend'
+  );
 };
 
-// ==========================================
-// ENDPOINTS DE PEDIDOS / BOLETAS
-// ==========================================
-
-export const obtenerPedidosUsuario = async (usuario_id) => {
+export const obtenerPedidosUsuario = async (usuarioId) => {
   try {
-    const respuesta = await fetch(`${API_URL}/pedidos/usuario/${usuario_id}`, {
-      headers: getAuthHeaders(false),
-    });
-    return await parsearRespuesta(respuesta, `Error al obtener los pedidos del usuario ${usuario_id}`);
+    const respuesta = await fetch(
+      `${API_ANTIGUA_URL}/pedidos/usuario/${usuarioId}`,
+      { headers: getAuthHeaders() }
+    );
+    return await parsearRespuesta(
+      respuesta,
+      `Error al obtener los pedidos del usuario ${usuarioId}`
+    );
   } catch (error) {
-    console.error(`Error en obtenerPedidosUsuario (${usuario_id}):`, error);
+    console.error('Error en obtenerPedidosUsuario:', error);
     return [];
   }
 };
 
 export const creacionPedido = async (datosBoleta) => {
-  try {
-    const respuesta = await fetch(`${API_URL}/pedidos`, {
-      method: 'POST',
-      headers: getAuthHeaders(true),
-      body: JSON.stringify(datosBoleta),
-    });
-    return await parsearRespuesta(respuesta, 'Error al realizar el pedido');
-  } catch (error) {
-    console.error('Error en creacionPedido:', error);
-    throw error;
-  }
+  const respuesta = await fetch(`${API_ANTIGUA_URL}/pedidos`, {
+    method: 'POST',
+    headers: getAuthHeaders(true),
+    body: JSON.stringify(datosBoleta),
+  });
+
+  return parsearRespuesta(respuesta, 'Error al realizar el pedido');
 };
