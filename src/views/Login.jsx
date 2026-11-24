@@ -67,27 +67,9 @@ export default function Login() {
     setCargando(true);
 
     try {
-      const googleUser = await loginWithGoogle(credentialResponse);
-      let usuarioFinal = googleUser;
-
-      // Consulta la BD para asignar el rol real (ADMINISTRADOR, VENDEDOR o CLIENTE) si el correo ya existe
-      try {
-        const usuarioBD = await obtenerUsuarioPorEmail(googleUser.email);
-        if (usuarioBD) {
-          usuarioFinal = {
-            ...googleUser,
-            ...usuarioBD,
-            foto: googleUser.foto,
-            rol: (usuarioBD.rol || googleUser.rol || 'CLIENTE').toUpperCase(),
-          };
-          syncSession(credentialResponse.credential, usuarioFinal);
-        }
-      } catch {
-        // Si el correo aún no existe en la BD, entra con rol CLIENTE por defecto
-      }
-
-      alert(`¡Bienvenido/a, ${usuarioFinal.nombre}!`);
-      redirigirPorRol(usuarioFinal.rol);
+      const usuario = await loginWithGoogle(credentialResponse);
+      alert(`¡Bienvenido/a, ${usuario.nombre}!`);
+      redirigirPorRol(usuario.rol);
     } catch (error) {
       setMsgError('No se pudo iniciar sesión con Google. Verifica tu cuenta institucional.');
     } finally {

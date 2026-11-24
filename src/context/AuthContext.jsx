@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
-const API_URL = 'http://localhost:8080/api/v1';
+const API_URL = '/api/v1'; //esto usa la url de AuthController que esta en el MS de usuarios
 
 function decodeJwtPayload(token) {
   try {
@@ -21,7 +21,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Recupera la sesión al recargar la página (IE3.3.2)
+  // Recupera la sesión al recargar la pagina
   useEffect(() => {
     const savedToken = localStorage.getItem('voltech_token');
     const savedUser = localStorage.getItem('voltech_user') || localStorage.getItem('usuario');
@@ -56,45 +56,40 @@ export function AuthProvider({ children }) {
   };
 
   const loginWithGoogle = async (credentialResponse) => {
-    const googleToken = credentialResponse?.credential;
-    if (!googleToken) {
+    const credential = credentialResponse?.credential;
+
+    if (!credential) {
       throw new Error('No se recibió credencial de Google');
     }
 
-    const googleProfile = decodeJwtPayload(googleToken);
+    const response = await fetch(`${API_URL}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+    });
 
-    try {
-      const response = await fetch(`${API_URL}/auth/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential: googleToken }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const normalizedUser = {
-          id: data.usuario?.id ?? googleProfile?.sub,
-          nombre: data.usuario?.nombre ?? googleProfile?.name,
-          email: data.usuario?.email ?? googleProfile?.email,
-          foto: googleProfile?.picture ?? null,
-          rol: (data.usuario?.rol || 'CLIENTE').toUpperCase(),
-        };
-        syncSession(data.token, normalizedUser);
-        return normalizedUser;
-      }
-    } catch {
-      // Si el backend aún no tiene /auth/google, continúa con el perfil de Google
+    if (!response.ok) {
+      throw new Error('El microservicio usuarios rechazo la credencial de Google');
     }
 
-    const fallbackUser = {
-      id: googleProfile?.sub,
-      nombre: googleProfile?.name || 'Usuario Duoc',
-      email: googleProfile?.email || '',
-      foto: googleProfile?.picture || null,
-      rol: 'CLIENTE',
+    const data = await response.json();
+
+    if (!data.token || !data.usuario) {
+      throw new Error('Respuesta incompleta de microservicio usuarios');
+    }
+
+    const googleProfile = decodeJwtPayload(credential);
+
+    const usuario = {
+      id: data.usuario.id,
+      nombre: data.usuario.nombre,
+      email: data.usuario.email,
+      rol: data.usuario.rol,
+      foto: googleProfile?.picture ?? null,
     };
-    syncSession(googleToken, fallbackUser);
-    return fallbackUser;
+
+    syncSession(data.token, usuario);
+    return usuario;
   };
 
   const logout = () => {

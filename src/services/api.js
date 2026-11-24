@@ -1,5 +1,6 @@
 const API_ANTIGUA_URL = 'http://localhost:3000/api';
 const INVENTARIO_URL = '/api/v1/productos';
+const COMUNAS_URL = '/api/v1/comunas';
 
 const getAuthHeaders = (hasBody = false) => {
   const headers = {};
@@ -54,6 +55,17 @@ export const regiones_comunas = {
     'Concepción', 'Talcahuano', 'Chiguayante',
     'Los Ángeles', 'Coronel',
   ],
+};
+
+export const obtenerComunas = async () => {
+  const respuesta = await fetch(COMUNAS_URL);
+  const comunas = await parsearRespuesta(respuesta, 'Error al obtener las comunas');
+
+  if (!Array.isArray(comunas)) {
+    throw new Error('La API de comunas no devolvio una lista');
+  }
+
+  return comunas;
 };
 
 // GET de productos: inventario-service a través del API Gateway
@@ -180,14 +192,14 @@ export const obtenerIdUsuario = async (id) => {
 };
 
 export const creacionUsuario = async (nuevoUsuario) => {
-  const respuesta = await fetch(`${API_ANTIGUA_URL}/usuarios/registro`, {
+  const respuesta = await fetch('/api/v1/usuarios', {
     method: 'POST',
-    headers: getAuthHeaders(true),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(nuevoUsuario),
   });
 
   return parsearRespuesta(respuesta, 'Error al crear el usuario');
-};
+}
 
 export const actualizarDireccionDeUsuario = async (id, datosDireccion) => {
   const respuesta = await fetch(
