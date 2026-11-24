@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
-import { obtenerUsuarioPorEmail } from '../services/api';
+import { iniciarSesionUsuario } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [contrasena, setContrasena] = useState('');
-
   const [msgError, setMsgError] = useState('');
   const [cargando, setCargando] = useState(false);
 
@@ -16,6 +15,7 @@ export default function Login() {
 
   const redirigirPorRol = (rol) => {
     const rolNormalizado = (rol || 'CLIENTE').toUpperCase();
+
     if (rolNormalizado === 'ADMINISTRADOR') {
       navigate('/admin');
     } else if (rolNormalizado === 'VENDEDOR') {
@@ -31,32 +31,21 @@ export default function Login() {
     setCargando(true);
 
     try {
-      const usuario = await obtenerUsuarioPorEmail(email.trim());
+      const { token, usuario } = await iniciarSesionUsuario(
+        email.trim(),
+        contrasena
+      );
 
-      if (!usuario) {
-        setMsgError('No existe una cuenta con este correo');
-        return;
+      if (!token || !usuario) {
+        throw new Error('Respuesta incompleta de usuarios-service');
       }
 
-      const contraGuardada = usuario.contrasena;
+      syncSession(token, usuario);
 
-      if (String(contraGuardada) !== String(contrasena)) {
-        setMsgError('Contraseña incorrecta');
-        return;
-      }
-
-      const usuarioNormalizado = {
-        ...usuario,
-        rol: (usuario.rol || 'CLIENTE').toUpperCase(),
-      };
-
-      const tokenSesion = usuario.token || `voltech-jwt-${usuario.id || Date.now()}`;
-      syncSession(tokenSesion, usuarioNormalizado);
-
-      alert(`¡Bienvenido/a de vuelta, ${usuarioNormalizado.nombre}!`);
-      redirigirPorRol(usuarioNormalizado.rol);
+      alert(`¡Bienvenido/a de vuelta, ${usuario.nombre}!`);
+      redirigirPorRol(usuario.rol);
     } catch (error) {
-      setMsgError('Error al intentar iniciar sesión');
+      setMsgError(error.message || 'Error al intentar iniciar sesión');
     } finally {
       setCargando(false);
     }
@@ -71,7 +60,7 @@ export default function Login() {
       alert(`¡Bienvenido/a, ${usuario.nombre}!`);
       redirigirPorRol(usuario.rol);
     } catch (error) {
-      setMsgError('No se pudo iniciar sesión con Google. Verifica tu cuenta institucional.');
+      setMsgError(error.message || 'No se pudo iniciar sesión con Google');
     } finally {
       setCargando(false);
     }
@@ -85,7 +74,10 @@ export default function Login() {
         <h3>Inicio de sesión</h3>
 
         {msgError && (
-          <div className="alert alert-danger py-2 w-100 text-center text-danger fw-bold" role="alert">
+          <div
+            className="alert alert-danger py-2 w-100 text-center text-danger fw-bold"
+            role="alert"
+          >
             {msgError}
           </div>
         )}

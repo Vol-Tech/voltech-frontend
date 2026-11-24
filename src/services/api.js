@@ -199,7 +199,18 @@ export const creacionUsuario = async (nuevoUsuario) => {
   });
 
   return parsearRespuesta(respuesta, 'Error al crear el usuario');
-}
+};
+
+
+export const iniciarSesionUsuario = async (email, contraseña) => {
+  const respuesta = await fetch('/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, contraseña }),
+  });
+
+  return parsearRespuesta(respuesta, 'Correo o contraseña incorrectos');
+};
 
 export const actualizarDireccionDeUsuario = async (id, datosDireccion) => {
   const respuesta = await fetch(
