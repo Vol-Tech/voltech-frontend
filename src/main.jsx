@@ -7,7 +7,7 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import { CarritoProvider } from './context/CarritoContext'
 import { AuthProvider } from './context/AuthContext'
 
-const GOOGLE_CLIENT_ID = '990836592049-vr0tpb8envclh0dsn2f2c2lj99hbr66d.apps.googleusercontent.com'
+const GOOGLE_CLIENT_ID = '865591412048-8sc25vo3sua4fd9k773gtgk6h8tb29am.apps.googleusercontent.com'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
