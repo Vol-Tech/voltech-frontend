@@ -1,6 +1,7 @@
 const API_ANTIGUA_URL = 'http://localhost:3000/api';
 const INVENTARIO_URL = '/api/v1/productos';
 const COMUNAS_URL = '/api/v1/comunas';
+const USUARIOS_URL = '/api/v1/usuarios';
 
 const getAuthHeaders = (hasBody = false) => {
   const headers = {};
@@ -68,7 +69,7 @@ export const obtenerComunas = async () => {
   return comunas;
 };
 
-// GET de productos: inventario-service a través del API Gateway
+// GET de productos
 export const obtenerProductos = async () => {
   const respuesta = await fetch(INVENTARIO_URL);
   const datos = await parsearRespuesta(
@@ -93,7 +94,7 @@ export const obtenerProductoPorId = async (id) => {
   return adaptarProducto(producto);
 };
 
-// Funciones existentes, pendientes de migrar a los microservicios
+// Funciones existentes, pendientes de migrar 
 export const obtenerProductosCriticos = async () => {
   try {
     const respuesta = await fetch(
@@ -146,49 +147,57 @@ export const borrarProducto = async (id) => {
 };
 
 export const obtenerTodoUsuarios = async () => {
-  try {
-    const respuesta = await fetch(`${API_ANTIGUA_URL}/usuarios`, {
-      headers: getAuthHeaders(),
-    });
-    return await parsearRespuesta(
-      respuesta,
-      'Error al obtener los usuarios'
-    );
-  } catch (error) {
-    console.error('Error en obtenerTodoUsuarios:', error);
-    return [];
-  }
-};
+  const respuesta = await fetch(USUARIOS_URL, {
+    headers: getAuthHeaders(),
+  });
 
-export const obtenerUsuarioPorEmail = async (email) => {
-  try {
-    const respuesta = await fetch(
-      `${API_ANTIGUA_URL}/usuarios/email/${encodeURIComponent(email)}`,
-      { headers: getAuthHeaders() }
-    );
-    return await parsearRespuesta(
-      respuesta,
-      `No se encontró el usuario con EMAIL ${email}`
-    );
-  } catch (error) {
-    console.error('Error en obtenerUsuarioPorEmail:', error);
-    return null;
-  }
+  return parsearRespuesta(respuesta, 'Error al obtener los usuarios');
 };
 
 export const obtenerIdUsuario = async (id) => {
-  try {
-    const respuesta = await fetch(`${API_ANTIGUA_URL}/usuarios/${id}`, {
-      headers: getAuthHeaders(),
-    });
-    return await parsearRespuesta(
-      respuesta,
-      `No se encontró el usuario con ID ${id}`
-    );
-  } catch (error) {
-    console.error('Error en obtenerIdUsuario:', error);
-    return null;
-  }
+  const respuesta = await fetch(`${USUARIOS_URL}/${id}`, {
+    headers: getAuthHeaders(),
+  });
+
+  return parsearRespuesta(respuesta, 'Error al obtener el usuario');
+};
+
+export const obtenerEstadisticasUsuarios = async () => {
+  const respuesta = await fetch(`${USUARIOS_URL}/estadisticas`, {
+    headers: getAuthHeaders(),
+  });
+
+  return parsearRespuesta(respuesta, 'Error al obtener estadísticas');
+};
+
+export const crearUsuarioAdmin = async (usuario, rol) => {
+  const respuesta = await fetch(`${USUARIOS_URL}/administracion`, {
+    method: 'POST',
+    headers: getAuthHeaders(true),
+    body: JSON.stringify({ usuario, rol }),
+  });
+
+  return parsearRespuesta(respuesta, 'Error al crear el usuario');
+};
+
+export const actualizarUsuarioAdmin = async (id, datos) => {
+  const respuesta = await fetch(`${USUARIOS_URL}/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(true),
+    body: JSON.stringify(datos),
+  });
+
+  return parsearRespuesta(respuesta, 'Error al actualizar el usuario');
+};
+
+export const actualizarRolUsuario = async (id, rol) => {
+  const respuesta = await fetch(`${USUARIOS_URL}/${id}/rol`, {
+    method: 'PUT',
+    headers: getAuthHeaders(true),
+    body: JSON.stringify({ rol }),
+  });
+
+  return parsearRespuesta(respuesta, 'Error al actualizar el rol');
 };
 
 export const creacionUsuario = async (nuevoUsuario) => {
@@ -214,7 +223,7 @@ export const iniciarSesionUsuario = async (email, contraseña) => {
 
 export const actualizarDireccionDeUsuario = async (id, datosDireccion) => {
   const respuesta = await fetch(
-    `${API_ANTIGUA_URL}/usuarios/${id}/direccion`,
+    `${USUARIOS_URL}/${id}/direccion`,
     {
       method: 'PUT',
       headers: getAuthHeaders(true),

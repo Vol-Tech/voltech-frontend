@@ -2,7 +2,7 @@ import {
   obtenerProductos,
   crearProd,
   borrarProducto,
-  obtenerUsuarioPorEmail,
+  actualizarDireccionDeUsuario,
 } from './api.js';
 
 describe('Servicios API REST y Seguridad JWT (IE3.2.2 / IE3.3.1)', () => {
@@ -79,17 +79,30 @@ describe('Servicios API REST y Seguridad JWT (IE3.2.2 / IE3.3.1)', () => {
     expect(opciones.headers['Authorization']).toBe('Bearer jwt-admin-999');
   });
 
-  it('debe retornar null si obtenerUsuarioPorEmail no encuentra el correo', async () => {
-    spyOn(window, 'fetch').and.returnValue(
+  it('envia la direccion al microservicio de usuarios por el gateway', async () => {
+    localStorage.setItem('voltech_token', 'jwt-cliente');
+
+    const datosDireccion = {
+      calle: 'Av. Principal 123',
+      depto: '4B',
+      comunaId: 1,
+    };
+
+    const fetchSpy = spyOn(window, 'fetch').and.returnValue(
       Promise.resolve(
-        new Response(JSON.stringify({ exito: false, mensaje: 'Usuario no encontrado' }), {
-          status: 404,
+        new Response(JSON.stringify({ id: 7, ...datosDireccion }), {
+          status: 200,
           headers: { 'Content-Type': 'application/json' },
         })
       )
     );
 
-    const usuario = await obtenerUsuarioPorEmail('noexiste@duocuc.cl');
-    expect(usuario).toBeNull();
+    await actualizarDireccionDeUsuario(7, datosDireccion);
+    const [url, opciones] = fetchSpy.calls.mostRecent().args;
+
+    expect(url).toBe('/api/v1/usuarios/7/direccion');
+    expect(opciones.method).toBe('PUT');
+    expect(opciones.headers.Authorization).toBe('Bearer jwt-cliente');
+    expect(JSON.parse(opciones.body)).toEqual(datosDireccion);
   });
 });
