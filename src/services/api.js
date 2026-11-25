@@ -1,5 +1,6 @@
 const API_ANTIGUA_URL = 'http://localhost:3000/api';
 const INVENTARIO_URL = '/api/v1/productos';
+const CATEGORIAS_URL = '/api/v1/categorias';
 const COMUNAS_URL = '/api/v1/comunas';
 const USUARIOS_URL = '/api/v1/usuarios';
 
@@ -25,7 +26,7 @@ const parsearRespuesta = async (respuesta, mensajeError) => {
     : { exito: true, data: true };
 
   if (!respuesta.ok || resultado.exito === false) {
-    throw new Error(resultado.mensaje || resultado.message || mensajeError);
+    throw new Error(resultado.mensaje || resultado.detail || resultado.message || mensajeError);
   }
 
   return resultado.data !== undefined ? resultado.data : resultado;
@@ -94,6 +95,17 @@ export const obtenerProductoPorId = async (id) => {
   return adaptarProducto(producto);
 };
 
+export const obtenerCategorias = async () => {
+  const respuesta = await fetch(CATEGORIAS_URL);
+  const datos = await parsearRespuesta(respuesta, 'Error al obtener las categorías');
+
+  if (!Array.isArray(datos)) {
+    throw new Error('La API de categorías no devolvió una lista');
+  }
+
+  return datos;
+};
+
 // Funciones existentes, pendientes de migrar 
 export const obtenerProductosCriticos = async () => {
   try {
@@ -112,7 +124,7 @@ export const obtenerProductosCriticos = async () => {
 };
 
 export const crearProd = async (nuevoProducto) => {
-  const respuesta = await fetch(`${API_ANTIGUA_URL}/productos`, {
+  const respuesta = await fetch(INVENTARIO_URL, {
     method: 'POST',
     headers: getAuthHeaders(true),
     body: JSON.stringify(nuevoProducto),
@@ -122,7 +134,7 @@ export const crearProd = async (nuevoProducto) => {
 };
 
 export const actualizarProducto = async (id, datosActualizados) => {
-  const respuesta = await fetch(`${API_ANTIGUA_URL}/productos/${id}`, {
+  const respuesta = await fetch(`${INVENTARIO_URL}/${id}`, {
     method: 'PUT',
     headers: getAuthHeaders(true),
     body: JSON.stringify(datosActualizados),
@@ -135,7 +147,7 @@ export const actualizarProducto = async (id, datosActualizados) => {
 };
 
 export const borrarProducto = async (id) => {
-  const respuesta = await fetch(`${API_ANTIGUA_URL}/productos/${id}`, {
+  const respuesta = await fetch(`${INVENTARIO_URL}/${id}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
@@ -166,6 +178,13 @@ export const obtenerEstadisticasUsuarios = async () => {
   const respuesta = await fetch(`${USUARIOS_URL}/estadisticas`, {
     headers: getAuthHeaders(),
   });
+
+  if (respuesta.status === 401) {
+    throw new Error('Tu sesión venció o no es válida. Cierra sesión e inicia de nuevo.');
+  }
+  if (respuesta.status === 403) {
+    throw new Error('Tu usuario no tiene permiso para ver estas estadísticas.');
+  }
 
   return parsearRespuesta(respuesta, 'Error al obtener estadísticas');
 };

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { obtenerEstadisticasUsuarios } from '../services/api';
+import { obtenerEstadisticasUsuarios, obtenerProductos } from '../services/api';
 import ListadoProductos from './ListadoProductos';
 import ListadoCategorias from './ListadoCategorias';
 import ListadoOrdenes from './ListadoOrdenes';
@@ -13,6 +13,9 @@ export default function AdminDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
   const [estadisticasUsuarios, setEstadisticasUsuarios] = useState(null);
+  const [errorUsuarios, setErrorUsuarios] = useState('');
+  const [estadisticasProductos, setEstadisticasProductos] = useState(null);
+  const [errorProductos, setErrorProductos] = useState('');
 
   const obtenerSeccion = () => {
     const ruta = location.pathname;
@@ -32,8 +35,27 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (isAdmin && seccionActual === 'dashboard') {
       obtenerEstadisticasUsuarios()
-        .then(setEstadisticasUsuarios)
-        .catch(console.error);
+        .then((estadisticas) => {
+          setEstadisticasUsuarios(estadisticas);
+          setErrorUsuarios('');
+        })
+        .catch((error) => {
+          setEstadisticasUsuarios(null);
+          setErrorUsuarios(error.message);
+        });
+
+      obtenerProductos()
+        .then((productos) => {
+          setEstadisticasProductos({
+            total: productos.length,
+            stock: productos.reduce((total, producto) => total + Number(producto.stock), 0),
+          });
+          setErrorProductos('');
+        })
+        .catch((error) => {
+          setEstadisticasProductos(null);
+          setErrorProductos(error.message);
+        });
     }
   }, [isAdmin, seccionActual]);
 
@@ -127,9 +149,9 @@ export default function AdminDashboard() {
                   <div className="card text-white bg-primary border-0 shadow-sm rounded-3 p-2">
                     <div className="card-body">
                       <h5 className="card-title">🛒 Compras</h5>
-                      <h2 className="display-5 fw-bold my-2">1,234</h2>
+                      <h2 className="display-5 fw-bold my-2">—</h2>
                       <p className="card-text small m-0 opacity-75">
-                        Probabilidad de aumento: 20%
+                        Pendiente de conectar pedidos
                       </p>
                     </div>
                   </div>
@@ -139,10 +161,17 @@ export default function AdminDashboard() {
                   <div className="card text-white bg-success border-0 shadow-sm rounded-3 p-2">
                     <div className="card-body">
                       <h5 className="card-title">📦 Productos</h5>
-                      <h2 className="display-5 fw-bold my-2">400</h2>
+                      <h2 className="display-5 fw-bold my-2">
+                        {estadisticasProductos?.total ?? '—'}
+                      </h2>
                       <p className="card-text small m-0 opacity-75">
-                        Inventario actual: 500
+                        Unidades en stock: {estadisticasProductos?.stock ?? '—'}
                       </p>
+                      {errorProductos && (
+                        <p className="card-text small mt-2 mb-0" role="alert">
+                          No se pudo cargar inventario: {errorProductos}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -158,6 +187,11 @@ export default function AdminDashboard() {
                         Nuevos usuarios este mes:{' '}
                         {estadisticasUsuarios?.nuevosEsteMes ?? '—'}
                       </p>
+                      {errorUsuarios && (
+                        <p className="card-text small mt-2 mb-0" role="alert">
+                          {errorUsuarios}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

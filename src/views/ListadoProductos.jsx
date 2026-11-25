@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { obtenerProductos, borrarProducto, crearProd, actualizarProducto, categorias } from '../services/api';
+import { obtenerProductos, obtenerCategorias, borrarProducto, crearProd, actualizarProducto } from '../services/api';
 
 const ListadoProductos = ({ soloLectura = false }) => {
   const [listaProductos, setListaProductos] = useState([]);
+  const [listaCategorias, setListaCategorias] = useState([]);
+  const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [modoEdicion, setModoEdicion] = useState(false);
   const [productoDetalle, setProductoDetalle] = useState(null);
@@ -13,7 +15,7 @@ const ListadoProductos = ({ soloLectura = false }) => {
     descripcion: '',
     precio: '',
     stock: '',
-    categoria: 'Cables',
+    categoriaId: '',
     imagen_url: ''
   });
 
@@ -23,8 +25,13 @@ const ListadoProductos = ({ soloLectura = false }) => {
   };
 
   useEffect(() => {
-    cargarProductos();
-  }, []);
+    cargarProductos().catch((error) => setError(error.message));
+    if (!soloLectura) {
+      obtenerCategorias()
+        .then(setListaCategorias)
+        .catch((error) => setError(error.message));
+    }
+  }, [soloLectura]);
 
   const handleEliminar = async (id) => {
     if (soloLectura) return;
@@ -33,14 +40,16 @@ const ListadoProductos = ({ soloLectura = false }) => {
       try {
         await borrarProducto(id);
         await cargarProductos();
+        setError('');
       } catch (error) {
-        console.error('Error al eliminar:', error);
+        setError(error.message);
       }
     }
   };
 
   const handleAbrirCrear = () => {
     if (soloLectura) return;
+    setError('');
     setModoEdicion(false);
     setFormData({
       id: null,
@@ -48,14 +57,15 @@ const ListadoProductos = ({ soloLectura = false }) => {
       descripcion: '',
       precio: '',
       stock: '',
-      categoria: 'Cables',
-      imagen_url: 'https://i.imgur.com/O4NVYbh.jpg'
+      categoriaId: listaCategorias[0]?.id ?? '',
+      imagen_url: ''
     });
     setShowModal(true);
   };
 
   const handleAbrirEditar = (producto) => {
     if (soloLectura) return;
+    setError('');
     setModoEdicion(true);
     setFormData({
       id: producto.id,
@@ -63,7 +73,7 @@ const ListadoProductos = ({ soloLectura = false }) => {
       descripcion: producto.descripcion || '',
       precio: Number(producto.precio),
       stock: producto.stock,
-      categoria: producto.categoria,
+      categoriaId: producto.categoriaId,
       imagen_url: producto.imagen_url || producto.imagen || ''
     });
     setShowModal(true);
@@ -78,8 +88,8 @@ const ListadoProductos = ({ soloLectura = false }) => {
       descripcion: formData.descripcion || `Producto ${formData.nombre}`,
       precio: Number(formData.precio),
       stock: Number(formData.stock),
-      categoria: formData.categoria,
-      imagen_url: formData.imagen_url || 'https://i.imgur.com/O4NVYbh.jpg'
+      categoriaId: Number(formData.categoriaId),
+      imagenUrl: formData.imagen_url || null
     };
 
     try {
@@ -91,8 +101,9 @@ const ListadoProductos = ({ soloLectura = false }) => {
 
       await cargarProductos();
       setShowModal(false);
+      setError('');
     } catch (error) {
-      console.error('Error al guardar el producto:', error);
+      setError(error.message);
     }
   };
 
@@ -108,6 +119,8 @@ const ListadoProductos = ({ soloLectura = false }) => {
           </button>
         )}
       </div>
+
+      {error && <div className="alert alert-danger" role="alert">{error}</div>}
 
       {/* TABLA DE PRODUCTOS */}
       <div className="table-responsive">
@@ -252,6 +265,7 @@ const ListadoProductos = ({ soloLectura = false }) => {
               </div>
               <form onSubmit={handleSubmit}>
                 <div className="modal-body">
+                  {error && <div className="alert alert-danger" role="alert">{error}</div>}
                   <div className="mb-3">
                     <label className="form-label fw-bold">Nombre del Producto</label>
                     <input
@@ -301,11 +315,13 @@ const ListadoProductos = ({ soloLectura = false }) => {
                     <label className="form-label fw-bold">Categoría</label>
                     <select
                       className="form-select text-capitalize"
-                      value={formData.categoria}
-                      onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                      value={formData.categoriaId}
+                      onChange={(e) => setFormData({ ...formData, categoriaId: e.target.value })}
+                      required
                     >
-                      {categorias.map((cat) => (
-                        <option key={cat.id} value={cat.nombre}>
+                      {listaCategorias.length === 0 && <option value="">Sin categorías disponibles</option>}
+                      {listaCategorias.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
                           {cat.nombre}
                         </option>
                       ))}
@@ -320,7 +336,6 @@ const ListadoProductos = ({ soloLectura = false }) => {
                       value={formData.imagen_url}
                       onChange={(e) => setFormData({ ...formData, imagen_url: e.target.value })}
                       placeholder="https://i.imgur.com/ejemplo.jpg"
-                      required
                     />
                   </div>
                 </div>
@@ -332,7 +347,7 @@ const ListadoProductos = ({ soloLectura = false }) => {
                   >
                     Cancelar
                   </button>
-                  <button type="submit" className="btn btn-success fw-bold">
+                  <button type="submit" className="btn btn-success fw-bold" disabled={listaCategorias.length === 0}>
                     {modoEdicion ? 'Guardar Cambios' : 'Crear Producto'}
                   </button>
                 </div>
